@@ -216,12 +216,17 @@
             // 等级
             Rectangle.FromLTRB(1465,405,1600,435),
             // 主属性
-            Rectangle.FromLTRB(1420,489,1830,530),
+            Rectangle.FromLTRB(1418,489,1720,530),
+            Rectangle.FromLTRB(1730,489,1830,530),
             // 副属性
-            Rectangle.FromLTRB(1420,567,1830,610),
-            Rectangle.FromLTRB(1420,619,1830,661),
-            Rectangle.FromLTRB(1420,671,1830,713),
-            Rectangle.FromLTRB(1420,723,1830,765),
+            Rectangle.FromLTRB(1418,567,1720,608),
+            Rectangle.FromLTRB(1730,567,1830,608),
+            Rectangle.FromLTRB(1418,618,1720,659),
+            Rectangle.FromLTRB(1730,618,1830,659),
+            Rectangle.FromLTRB(1418,670,1720,711),
+            Rectangle.FromLTRB(1730,670,1830,711),
+            Rectangle.FromLTRB(1418,722,1720,763),
+            Rectangle.FromLTRB(1730,722,1830,763),
         };
         // 属性背景偏移，通过检测背景颜色判断有没有更多的副属性
         static Point StatBackgroundOffset = new Point(10, 20);
@@ -306,7 +311,7 @@
                             foreach (var item in DriveDiscInfo)
                             {
                                 // 名称、等级、主属性必有，或者有副属性
-                                if (k <= 2 || GetPixel(item.X + StatBackgroundOffset.X, item.Y + StatBackgroundOffset.Y) != CardBackGroundColor)
+                                if (k <= 3 || GetPixel(item.X + StatBackgroundOffset.X, item.Y + StatBackgroundOffset.Y) != CardBackGroundColor)
                                 {
                                     // 复制指定区域
                                     cardGraph.CopyFromScreen(item.X, item.Y, item.X - DriveDiscCard.X, item.Y - DriveDiscCard.Y, item.Size);
