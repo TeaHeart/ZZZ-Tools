@@ -414,7 +414,7 @@
     /// </summary>
     internal partial class Program
     {
-        static void Main(string[] args)
+        static async Task Main(string[] args)
         {
             try
             {
@@ -433,7 +433,7 @@
                 else
                 {
                     RequireWindow();
-                    StartScanner().Wait();
+                    await StartScanner();
                     Console.WriteLine("程序结束");
                     Console.ReadKey();
                 }
