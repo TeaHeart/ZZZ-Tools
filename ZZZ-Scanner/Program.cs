@@ -1,11 +1,13 @@
 ﻿namespace ZZZScanner
 {
     using System;
+    using System.ComponentModel;
     using System.Diagnostics;
     using System.Drawing;
     using System.Drawing.Imaging;
     using System.IO;
     using System.Linq;
+    using System.Reflection;
     using System.Runtime.InteropServices;
     using System.Threading;
     using System.Threading.Tasks;
@@ -271,7 +273,7 @@
         }
 
         // 遍历扫描逻辑
-        static async Task Scan(DirectoryInfo dir, CancellationToken token)
+        static async Task Scan(DirectoryInfo dir, ScanOption opt, CancellationToken token)
         {
             var count = 0;
             // 遍历驱动盘，总共4行，1、2、4行正常扫描，第3行通过翻页扫描
@@ -305,27 +307,40 @@
                     {
                         using (var cardGraph = Graphics.FromImage(card))
                         {
-                            // 填充黑色
-                            cardGraph.Clear(Color.Black);
-                            var k = 0;
-                            foreach (var item in DriveDiscInfo)
+                            if (opt.Color != Color.Empty)
                             {
-                                // 名称、等级、主属性必有，或者有副属性
-                                if (k <= 3 || GetPixel(item.X + StatBackgroundOffset.X, item.Y + StatBackgroundOffset.Y) != CardBackGroundColor)
+                                cardGraph.Clear(color);
+                            }
+                            if (opt.Data)
+                            {
+                                var k = 0;
+                                foreach (var item in DriveDiscInfo)
                                 {
-                                    // 复制指定区域
-                                    cardGraph.CopyFromScreen(item.X, item.Y, item.X - DriveDiscCard.X, item.Y - DriveDiscCard.Y, item.Size);
-                                    k++;
+                                    // 名称、等级、主属性必有，或者有副属性
+                                    if (k <= 3 || GetPixel(item.X + StatBackgroundOffset.X, item.Y + StatBackgroundOffset.Y) != CardBackGroundColor)
+                                    {
+                                        // 复制指定区域
+                                        cardGraph.CopyFromScreen(item.X, item.Y, item.X - DriveDiscCard.X, item.Y - DriveDiscCard.Y, item.Size);
+                                        k++;
+                                    }
+                                    else
+                                    {
+                                        break;
+                                    }
                                 }
-                                else
-                                {
-                                    break;
-                                }
+                            }
+                            else
+                            {
+                                // 整图复制
+                                cardGraph.CopyFromScreen(DriveDiscCard.X, DriveDiscCard.Y, 0, 0, DriveDiscCard.Size);
                             }
                         }
 
                         // 二值化，128可保留词缀后橙色+x，192不保留
-                        BinarizeImage(card, 192, false);
+                        if (opt.Threshold is byte value)
+                        {
+                            BinarizeImage(card, value, opt.Invert);
+                        }
                         // 保存
                         var filename = Path.Combine(dir.Name, $"{count:0000}.png");
                         card.Save(filename, ImageFormat.Png);
@@ -345,10 +360,10 @@
             }
         }
 
-        static async Task StartScanner()
+        static async Task StartScanner(ScanOption opt)
         {
             // 输出目录
-            var dir = Directory.CreateDirectory($"{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+            var dir = Directory.CreateDirectory(opt.Output);
             // 等待背包
             Console.WriteLine("等待背包界面");
             await WaitUntilAsync(() => GetPixel(Dismantle.X, Dismantle.Y) == DismantleColor, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(1), "等待背包超时");
@@ -362,7 +377,7 @@
             var cts = new CancellationTokenSource();
             Console.WriteLine("按ESC退出背包后停止扫描");
             var monitor = MonitorUI(cts);
-            var scan = Scan(dir, cts.Token);
+            var scan = Scan(dir, opt, cts.Token);
 
             try
             {
@@ -377,7 +392,7 @@
             Process.Start("explorer.exe", dir.FullName);
         }
 
-        static unsafe void BinarizeImage(Bitmap image, int threshold = 128, bool invert = false)
+        static unsafe void BinarizeImage(Bitmap image, byte threshold, bool invert)
         {
             var data = image.LockBits(new Rectangle(0, 0, image.Width, image.Height), ImageLockMode.ReadWrite, image.PixelFormat);
 
@@ -418,6 +433,12 @@
         {
             try
             {
+                if (!ParserCommandLineArgs(args, out var opt))
+                {
+                    ShowHelp();
+                    return;
+                }
+
                 if (!IsUserAnAdmin())
                 {
                     Console.WriteLine("不是管理员，尝试以管理员身份运行");
@@ -433,7 +454,7 @@
                 else
                 {
                     RequireWindow();
-                    await StartScanner();
+                    await StartScanner(opt);
                     Console.WriteLine("程序结束");
                     Console.ReadKey();
                 }
@@ -443,6 +464,62 @@
                 Console.Error.WriteLine($"程序终止：{ex.Message}");
                 Console.Error.WriteLine(ex.StackTrace);
                 Console.ReadKey();
+            }
+        }
+
+        class ScanOption
+        {
+            [Description("只输出数据，默认false")]
+            internal bool Data { get; set; } = false;
+            [Description("背景色，默认null，如#66ccff")]
+            internal Color? Color { get; set; } = null;
+            [Description("二值化阈值，默认null，[0,255]")]
+            internal byte? Threshold { get; set; } = null;
+            [Description("反转颜色，默认false，仅二值化生效")]
+            internal bool Invert { get; set; } = false;
+            [Description("输出目录，默认yyyy-MM-dd-HH-mm-ss")]
+            internal string Output { get; set; } = $"{DateTime.Now:yyyy-MM-dd-HH-mm-ss}";
+        }
+
+        static bool ParserCommandLineArgs(string[] args, out ScanOption option)
+        {
+            option = new ScanOption();
+            var separator = "=".ToCharArray();
+            foreach (var item in args)
+            {
+                var pair = item.Split(separator, 2);
+                switch (pair[0])
+                {
+                    case "--data":
+                        option.Data = true;
+                        break;
+                    case "--color":
+                        option.Color = ColorTranslator.FromHtml($"#{pair[1].TrimStart('#')}");
+                        break;
+                    case "--threshold":
+                        option.Threshold = byte.Parse(pair[1]);
+                        break;
+                    case "--invert":
+                        option.Invert = true;
+                        break;
+                    case "--output":
+                        new DirectoryInfo(pair[1]);
+                        option.Output = pair[1];
+                        break;
+                    default:
+                        return false;
+                }
+            }
+            return true;
+        }
+
+        static void ShowHelp()
+        {
+            Console.WriteLine("ZZZ-Scanner.exe [--data] [--color=000000] [--threshold=192] [--invert] [--output=白底黑字192]");
+            foreach (var prop in typeof(ScanOption).GetProperties(BindingFlags.NonPublic | BindingFlags.Instance))
+            {
+                var descAttr = prop.GetCustomAttribute<DescriptionAttribute>();
+                Console.WriteLine($"  --{prop.Name.ToLower(),-12}\t{descAttr.Description}");
             }
         }
     }
