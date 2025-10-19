@@ -254,11 +254,15 @@
         // 监控拆解按钮颜色，即检测用户是否退出了背包
         static async Task MonitorUI(CancellationTokenSource cts)
         {
-            while (GetPixel(Dismantle.X, Dismantle.Y) == DismantleColor)
+            while (!cts.IsCancellationRequested)
             {
+                if (GetPixel(Dismantle.X, Dismantle.Y) != DismantleColor)
+                {
+                    cts.Cancel();
+                    break;
+                }
                 await Task.Delay(100);
             }
-            cts.Cancel();
         }
 
         // 遍历扫描逻辑
@@ -353,10 +357,13 @@
             var cts = new CancellationTokenSource();
             Console.WriteLine("按ESC退出背包后停止扫描");
             var monitor = MonitorUI(cts);
+            var scan = Scan(dir, cts.Token);
+
             try
             {
-                var scan = Scan(dir, cts.Token);
                 await Task.WhenAny(monitor, scan);
+                cts.Cancel();
+                await Task.WhenAll(monitor, scan);
             }
             catch (OperationCanceledException)
             {
