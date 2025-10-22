@@ -1,0 +1,7 @@
+SetProcessDPIAware
+GetClientRect
+ClientToScreen
+ShowWindow
+SetForegroundWindow
+SetCursorPos
+mouse_event
