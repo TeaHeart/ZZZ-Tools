@@ -127,7 +127,7 @@ public class GameHelper : IDisposable
             using var _ = src;
             var result = _recognizer.Recognize(src, rois);
             var id = _ocrResults.Count;
-            Console.WriteLine($"识别结果 {id}: {result.SequenceToString()}");
+            Console.WriteLine($"识别结果 {id}: {result.SequenceToString(x => x.Text)}");
             try
             {
                 var export = _textCleaner.Clean(result);

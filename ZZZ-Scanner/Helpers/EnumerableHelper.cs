@@ -15,6 +15,28 @@ public static class EnumerableHelper
         return $"{prefix}{string.Join(separator, es)}{suffix}";
     }
 
+    public static string SequenceToString<T>(this IEnumerable<T> es, Func<T, string> toString, string separator = ", ", string prefix = "[", string suffix = "]")
+    {
+        var et = es.GetEnumerator();
+        var sb = new StringBuilder();
+        if (!et.MoveNext())
+        {
+            return sb.Append(prefix).Append(suffix).ToString();
+        }
+
+        sb.Append(prefix);
+        while (true)
+        {
+            var curr = et.Current;
+            sb.Append(toString(curr));
+            if (!et.MoveNext())
+            {
+                return sb.Append(suffix).ToString();
+            }
+            sb.Append(separator);
+        }
+    }
+
     public static string SequenceToString<TKey, TValue>(this IEnumerable<KeyValuePair<TKey, TValue>> es, string separator = ", ", string prefix = "{", string suffix = "}", string pairSeparator = "=")
     {
         var et = es.GetEnumerator();
