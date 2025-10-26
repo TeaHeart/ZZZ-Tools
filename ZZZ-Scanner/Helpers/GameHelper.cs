@@ -174,6 +174,7 @@ public class GameHelper : IDisposable
         var cardBackGroundColor = _config.Colors["驱动盘信息背景"];
         var statBackGroundColor = _config.Colors["属性条目背景"];
         var driveDiscCard = _config.DriveDiscRectangleFs["位置"];
+        var driveDiscLevel = _config.DriveDiscRectangleFs["等级"];
         var (bx, by) = _windowHelper.ToAbsolute(driveDiscCard.X, driveDiscCard.Y);
         // 感兴趣区域，相对驱动盘信息位置
         var rois = _config.DriveDiscRectangleFs.Values.Skip(1).Select(item =>
@@ -209,7 +210,7 @@ public class GameHelper : IDisposable
                 //检测驱动盘等级区域的背景色，即是否加载完成
                 await Task.Delay(100, token);
                 // 最慢的地方，100ms不能保证完全加载出来驱动盘信息，至少得200ms
-                // await WaitUntilAsync(() => _windowHelper.GetPixel(driveDiscRois[1].X, driveDiscRois[1].Y) == statBackGroundColor, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(0.1), "驱动盘加载超时", token);
+                await WaitUntilAsync(() => _windowHelper.GetPixel(driveDiscLevel.X, driveDiscLevel.Y) == statBackGroundColor, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(0.1), "驱动盘加载超时", token);
 
                 // 截取信息
                 using var image = _windowHelper.GetImage(driveDiscCard.X, driveDiscCard.Y, driveDiscCard.Width, driveDiscCard.Height);
