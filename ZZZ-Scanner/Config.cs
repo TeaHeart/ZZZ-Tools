@@ -134,15 +134,20 @@ public class Config
 
         public IEnumerator<string> GetEnumerator()
         {
-            for (var i = Start; i <= Stop; i += Step)
+            var maxLevel = (int)Math.Round((Stop - Start) / Step);
+            for (var i = 0; i <= maxLevel; i ++)
             {
+                var value = Start + i * Step;
                 if (IsPercent)
                 {
-                    yield return $"{Math.Round(i, 1):F1}%"; // 百分比的都是1位小数
+                    // 百分比若无小数则不显示，否则显示1位小数
+                    var rounded = Math.Round(value, 1);
+                    yield return (rounded % 1 == 0) ? $"{(int)rounded}%" : $"{rounded:F1}%";
                 }
                 else
                 {
-                    yield return $"{(int)Math.Round(i)}"; // 都是整数显示
+                    // 不是百分比则整数显示
+                    yield return $"{(int)Math.Round(value)}";
                 }
             }
         }
