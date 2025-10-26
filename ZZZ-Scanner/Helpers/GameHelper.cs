@@ -39,12 +39,11 @@ public class GameHelper : IDisposable
         var scrollBarTop = _config.PointFs["滚动条顶部"];
 
         _windowHelper.SetVisible(true);
-        await Task.Delay(100);
         // 等待背包
         Console.WriteLine("等待背包界面");
-        await WaitUntilAsync(() => _windowHelper.GetPixel(dismantle.X, dismantle.Y) == dismantleColor, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(1), "等待背包超时");
+        await WaitUntilAsync(() => _windowHelper.GetPixel(dismantle.X, dismantle.Y) == dismantleColor, TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(1), "等待背包超时", 2);
         // 驱动盘页面
-        _windowHelper.LeftClick(driveDiscStorage.X, driveDiscStorage.Y, 100);
+        _windowHelper.LeftClick(driveDiscStorage.X, driveDiscStorage.Y);
         await Task.Delay(100);
         // 到第一行
         _windowHelper.LeftClick(scrollBarTop.X, scrollBarTop.Y, 100);
@@ -207,10 +206,9 @@ public class GameHelper : IDisposable
                     return;
                 }
 
-                //检测驱动盘等级区域的背景色，即是否加载完成
-                await Task.Delay(100, token);
+                // 检测驱动盘等级区域的背景色，即是否加载完成
                 // 最慢的地方，100ms不能保证完全加载出来驱动盘信息，至少得200ms
-                await WaitUntilAsync(() => _windowHelper.GetPixel(driveDiscLevel.X, driveDiscLevel.Y) == statBackGroundColor, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(0.1), "驱动盘加载超时", token);
+                await WaitUntilAsync(() => _windowHelper.GetPixel(driveDiscLevel.X, driveDiscLevel.Y) == statBackGroundColor, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(0.1), "驱动盘加载超时", 2, token);
 
                 // 截取信息
                 using var image = _windowHelper.GetImage(driveDiscCard.X, driveDiscCard.Y, driveDiscCard.Width, driveDiscCard.Height);
@@ -246,17 +244,18 @@ public class GameHelper : IDisposable
         }
     }
 
-    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout, TimeSpan interval, string message = "超时", CancellationToken token = default)
+    private static async Task WaitUntilAsync(Func<bool> condition, TimeSpan timeout, TimeSpan interval, string message = "超时", int confirm = 1, CancellationToken token = default)
     {
         var startTime = DateTime.Now;
-        while (DateTime.Now - startTime < timeout)
+        int count = 0;
+        do
         {
-            if (condition())
+            await Task.Delay(interval, token);
+            if (condition() && count++ < confirm)
             {
                 return;
             }
-            await Task.Delay(interval, token);
-        }
+        } while (DateTime.Now - startTime < timeout);
         throw new TimeoutException(message);
     }
 }
