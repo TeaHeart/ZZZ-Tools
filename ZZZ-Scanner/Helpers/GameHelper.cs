@@ -16,6 +16,8 @@ public class GameHelper : IDisposable
     private readonly TextCleaner _textCleaner;
     private readonly BlockingCollection<(Mat src, Rect[] rois)> _ocrTaskQueue = new();
     private readonly List<DriveDiscExport> _ocrResults = new();
+    private readonly DirectoryInfo _dir;
+    private int _total = 0;
 
     public GameHelper()
     {
@@ -23,6 +25,8 @@ public class GameHelper : IDisposable
         _windowHelper = new WindowHelper(_config.ProcessName);
         _recognizer = new Recognizer(_config.ModelFile, _config.CharacterDictFile);
         _textCleaner = new TextCleaner(_config);
+        _dir = new DirectoryInfo($"{DateTime.Now:yyyy-MM-dd-HH-mm-ss}");
+        _dir.Create();
     }
 
     public void Dispose()
@@ -73,10 +77,10 @@ public class GameHelper : IDisposable
 
         // 保存文件
         var json = JsonSerializer.Serialize(_ocrResults, Config.Option);
-        var filename = $"{DateTime.Now:yyyy-MM-dd-HH-mm-ss}.json";
+        var filename = @$"{_dir.FullName}\export.json";
         File.WriteAllText(filename, json);
-        Console.WriteLine($"保存 {_ocrResults.Count} 个结果到 {filename}");
-        Process.Start(filename);
+        Console.WriteLine($"共 {_total} 个，失败 {_total - _ocrResults.Count} 个");
+        Process.Start(_dir.FullName);
     }
 
     public struct DriveDiscExport
@@ -122,22 +126,31 @@ public class GameHelper : IDisposable
     {
         foreach (var (src, rois) in _ocrTaskQueue.GetConsumingEnumerable())
         {
+            var id = ++_total;
             // using管理资源
             using var _ = src;
             var result = _recognizer.Recognize(src, rois);
-            var id = _ocrResults.Count;
             Console.WriteLine($"识别结果 {id}: {result.SequenceToString(x => x.Text)}");
             try
             {
-                var export = _textCleaner.Clean(result);
-                Console.WriteLine($"纠错结果 {id}: {export}");
-                _ocrResults.Add(export);
+                if (result.Count != rois.Length)
+                {
+                    throw new Exception($"图片识别结果不匹配 {result.Count} != {rois.Length}");
+                }
+                else
+                {
+                    var export = _textCleaner.Clean(result);
+                    Console.WriteLine($"纠错结果 {id}: {export}");
+                    _ocrResults.Add(export);
+                }
             }
             catch (Exception ex)
             {
                 Console.Error.WriteLine($"纠错失败 {id}: {result.SequenceToString()}");
                 Console.Error.WriteLine(ex.Message);
                 Console.Error.WriteLine(ex.StackTrace);
+                var filename = @$"{_dir.FullName}\{id}.error.png";
+                Cv2.ImWrite(filename, src);
             }
         }
     }
